@@ -46,6 +46,8 @@
 #include "rtl-sdr.h"
 #include "anet.h"
 
+#include "adsbrecorder_jni_Dump1090Native.h"
+
 #define MODES_DEFAULT_RATE         2000000
 #define MODES_DEFAULT_FREQ         1090000000
 #define MODES_DEFAULT_WIDTH        1000
@@ -231,6 +233,16 @@ struct modesMessage {
     int altitude, unit;
 };
 
+#ifdef JNIEXPORT
+JNIEnv* env;
+jobject thiz;
+
+// callback object to send data to upper layer
+// void aircraftFound(Aircraft aircraft)
+jobject jni_callback;
+jmethodID callback_method;
+#endif
+
 void interactiveShowData(void);
 struct aircraft* interactiveReceiveData(struct modesMessage *mm);
 void modesSendRawOutput(struct modesMessage *mm);
@@ -380,7 +392,7 @@ void modesInitRTLSDR(void) {
     rtlsdr_set_sample_rate(Modes.dev, MODES_DEFAULT_RATE);
     rtlsdr_reset_buffer(Modes.dev);
     fprintf(stderr, "Gain reported by device: %.2f\n",
-        rtlsdr_get_tuner_gain(Modes.dev)/10.0);
+            rtlsdr_get_tuner_gain(Modes.dev)/10.0);
 }
 
 /* We use a thread reading data in background, while the main thread
@@ -543,7 +555,7 @@ void dumpRawMessageJS(char *descr, unsigned char *msg,
         if (j != end) fprintf(fp,",");
     }
     fprintf(fp,"], \"fix1\": %d, \"fix2\": %d, \"bits\": %d, \"hex\": \"",
-        fix1, fix2, modesMessageLenByType(msg[0]>>3));
+       fix1, fix2, modesMessageLenByType(msg[0]>>3));
     for (j = 0; j < MODES_LONG_MSG_BYTES; j++)
         fprintf(fp,"\\x%02x",msg[j]);
     fprintf(fp,"\"});\n");
@@ -1106,7 +1118,123 @@ void decodeModesMessage(struct modesMessage *mm, unsigned char *msg) {
     }
     mm->phase_corrected = 0; /* Set to 1 by the caller if needed. */
 }
+#ifdef JNIEXPORT
+void displayModesMessage(struct modesMessage *mm) {
+    jclass jaircraft_class;
+    jmethodID jaircraft_constructor;
+    jmethodID setter;
+    jobject jaircraft;
+    struct aircraft *a;
 
+    //jaircraft_class = (*env)->FindClass(env, "rtlcloud/jni/Aircraft");
+    jaircraft_class = (*env)->FindClass(env, "adsbrecorder/jni/Aircraft");
+    if (jaircraft_class == NULL) {
+        return;
+    }
+    jaircraft_constructor = (*env)->GetMethodID(env, jaircraft_class, "<init>", "()V");
+    if (jaircraft_constructor == NULL) {
+        return;
+    }
+    jaircraft = (*env)->NewObject(env, jaircraft_class, jaircraft_constructor);
+    a = interactiveReceiveData(mm);
+
+    //public void setAddressICAO(int addressICAO)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setAddressICAO", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->addr);
+    }
+
+    //public void setFlightNumber(String flightNumber)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setFlightNumber", "(Ljava/lang/String;)V");
+    if (setter) {
+        jstring flight = (*env)->NewStringUTF(env, a->flight);
+        (*env)->CallVoidMethod(env, jaircraft, setter, flight);
+    }
+
+    //public void setLatitude(double latitude)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setLatitude", "(D)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->lat);
+    }
+
+    //public void setLongitude(double longitude)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setLongitude", "(D)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->lon);
+    }
+
+    //public void setAltitude(int altitude)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setAltitude", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->altitude);
+    }
+
+    //public void setVelocity(int velocity)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setVelocity", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->speed);
+    }
+
+    //public void setHeading(int heading)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setHeading", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->track);
+    }
+
+    //public void setLastTimeSeen(long lastTimeSeen)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setLastTimeSeen", "(J)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->seen);
+    }
+
+    //public void setMessageCounter(long messageCounter)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setMessageCounter", "(J)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->messages);
+    }
+
+    //public void setOddCprlat(int oddCprlat)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setOddCprlat", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->odd_cprlat);
+    }
+
+    //public void setOddCprlon(int oddCprlon)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setOddCprlon", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->odd_cprlon);
+    }
+
+    //public void setEvenCprlat(int evenCprlat)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setEvenCprlat", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->even_cprlat);
+    }
+
+    //public void setEvenCprlon(int evenCprlon)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setEvenCprlon", "(I)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->even_cprlon);
+    }
+
+    //public void setOddCprtime(long oddCprtime)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setOddCprtime", "(J)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->odd_cprtime);
+    }
+
+    //public void setEvenCprtime(long evenCprtime)
+    setter = (*env)->GetMethodID(env, jaircraft_class, "setEvenCprtime", "(J)V");
+    if (setter) {
+        (*env)->CallVoidMethod(env, jaircraft, setter, a->even_cprtime);
+    }
+
+    if (callback_method) {
+        (*env)->CallVoidMethod(env, jni_callback, callback_method, jaircraft);
+    }
+    //free(a);
+}
+#else /* JNIEXPORT */
 /* This function gets a decoded Mode S Message and prints it on the screen
  * in a human readable format. */
 void displayModesMessage(struct modesMessage *mm) {
@@ -1221,6 +1349,7 @@ void displayModesMessage(struct modesMessage *mm) {
                 mm->msgtype);
     }
 }
+#endif /* JNIEXPORT */
 
 /* Turn I/Q samples pointed by Modes.data into the magnitude vector
  * pointed by Modes.magnitude. */
@@ -1781,7 +1910,7 @@ struct aircraft *interactiveReceiveData(struct modesMessage *mm) {
             }
             /* If the two data is less than 10 seconds apart, compute
              * the position. */
-            if (abs(a->even_cprtime - a->odd_cprtime) <= 10000) {
+            if (llabs(a->even_cprtime - a->odd_cprtime) <= 10000) {
                 decodeCPR(a);
             }
         } else if (mm->metype == 19) {
@@ -2474,6 +2603,8 @@ void backgroundTasks(void) {
     }
 }
 
+#ifndef JNIEXPORT
+
 int main(int argc, char **argv) {
     int j;
 
@@ -2633,4 +2764,92 @@ int main(int argc, char **argv) {
     return 0;
 }
 
+#else /* JNIEXPORT */
 
+/*
+ * Class:     rtlcloud_jni_Dump1090Native
+ * Method:    startMonitor
+ * Signature: (Lrtlcloud/jni/NewAircraftCallback;)V
+ */
+JNIEXPORT void JNICALL Java_adsbrecorder_jni_Dump1090Native_startMonitor(JNIEnv* _env, jobject _thiz, jint index, jobject callback) {
+    jfieldID inUse;
+    jclass thiz_cls;
+
+    env = _env;
+    thiz = (*env)->NewGlobalRef(env, _thiz);
+    jni_callback = (*env)->NewGlobalRef(env, callback);
+
+    thiz_cls = (*env)->FindClass(env, "adsbrecorder/jni/Dump1090Native");
+    inUse = (*env)->GetFieldID(env, thiz_cls, "inUse", "I");
+    (*env)->SetIntField(env, thiz, inUse, 1);
+
+    callback_method = (*env)->GetMethodID(env, (*env)->GetObjectClass(env, callback), "aircraftFound", "(Ladsbrecorder/jni/Aircraft;)V");
+
+    modesInitConfig();
+    modesInit();
+
+    Modes.dev_index = index;
+
+    modesInitRTLSDR();
+
+    pthread_create(&Modes.reader_thread, NULL, readerThreadEntryPoint, NULL);
+
+    pthread_mutex_lock(&Modes.data_mutex);
+    while (1) {
+        if (!Modes.data_ready) {
+            pthread_cond_wait(&Modes.data_cond,&Modes.data_mutex);
+            continue;
+        }
+        computeMagnitudeVector();
+        Modes.data_ready = 0;
+        pthread_cond_signal(&Modes.data_cond);
+        pthread_mutex_unlock(&Modes.data_mutex);
+        detectModeS(Modes.magnitude, Modes.data_len/2);
+        pthread_mutex_lock(&Modes.data_mutex);
+        if (Modes.exit) {
+            break;
+        }
+    }
+    (*env)->SetIntField(env, thiz, inUse, 0);
+    rtlsdr_close(Modes.dev);
+}
+
+JNIEXPORT void JNICALL Java_adsbrecorder_jni_Dump1090Native_stopMonitor(JNIEnv* env0, jobject thiz) {
+    MODES_NOTUSED(env0);
+    MODES_NOTUSED(thiz);
+    Modes.exit = 1;
+}
+
+JNIEXPORT jobject JNICALL Java_adsbrecorder_jni_Dump1090Native_listAllReceivers(JNIEnv* env0, jclass clazz) {
+    jclass integer;
+    jmethodID new_integer;
+    jclass arraylist;
+    jobject dev_list;
+    int j;
+    int device_count;
+    rtlsdr_dev_t *dev;
+    jmethodID constuctor, add;
+
+    MODES_NOTUSED(clazz);  // adsbrecorder.jni.Dump1090Native
+
+    arraylist = (*env0)->FindClass(env0, "java/util/ArrayList");
+    integer = (*env0)->FindClass(env0, "java/lang/Integer");
+    new_integer = (*env0)->GetMethodID(env0, integer, "<init>", "(I)V");
+    constuctor = (*env0)->GetMethodID(env0, arraylist, "<init>", "()V");
+    add = (*env0)->GetMethodID(env0, arraylist, "add", "(Ljava/lang/Object;)Z");
+    dev_list = (*env0)->NewObject(env0, arraylist, constuctor);
+
+    device_count = rtlsdr_get_device_count();
+    for (j = 0; j < device_count; j++) {
+        if (rtlsdr_open(&dev, j) < 0) {
+            fprintf(stderr, "Error opening the RTLSDR device(%d): %s\n", j, strerror(errno));
+        } else {
+            jobject dev_idx = (*env0)->NewObject(env0, integer, new_integer, j);
+            (*env0)->CallBooleanMethod(env0, dev_list, add, dev_idx);
+            rtlsdr_close(dev);
+        }
+    }
+    return dev_list;
+}
+
+#endif /* JNIEXPORT */
