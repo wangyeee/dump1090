@@ -27,6 +27,14 @@ JNIEXPORT void JNICALL Java_adsbrecorder_jni_Dump1090Native_stopMonitor
 
 /*
  * Class:     adsbrecorder_jni_Dump1090Native
+ * Method:    setBiasTee
+ * Signature: (Z)V
+ */
+JNIEXPORT void JNICALL Java_adsbrecorder_jni_Dump1090Native_setBiasTee
+  (JNIEnv *, jobject, jboolean);
+
+/*
+ * Class:     adsbrecorder_jni_Dump1090Native
  * Method:    listAllReceivers
  * Signature: ()Ljava/util/List;
  */

@@ -145,6 +145,7 @@ struct {
     int enable_agc;
     rtlsdr_dev_t *dev;
     int freq;
+    int bias_tee;
 
     /* Networking */
     char aneterr[ANET_ERR_LEN];
@@ -1126,7 +1127,6 @@ void displayModesMessage(struct modesMessage *mm) {
     jobject jaircraft;
     struct aircraft *a;
 
-    //jaircraft_class = (*env)->FindClass(env, "rtlcloud/jni/Aircraft");
     jaircraft_class = (*env)->FindClass(env, "adsbrecorder/jni/Aircraft");
     if (jaircraft_class == NULL) {
         return;
@@ -2791,6 +2791,7 @@ JNIEXPORT void JNICALL Java_adsbrecorder_jni_Dump1090Native_startMonitor(JNIEnv*
     Modes.dev_index = index;
 
     modesInitRTLSDR();
+    rtlsdr_set_bias_tee(Modes.dev, Modes.bias_tee);
 
     pthread_create(&Modes.reader_thread, NULL, readerThreadEntryPoint, NULL);
 
@@ -2818,6 +2819,12 @@ JNIEXPORT void JNICALL Java_adsbrecorder_jni_Dump1090Native_stopMonitor(JNIEnv* 
     MODES_NOTUSED(env0);
     MODES_NOTUSED(thiz);
     Modes.exit = 1;
+}
+
+JNIEXPORT void JNICALL Java_adsbrecorder_jni_Dump1090Native_setBiasTee(JNIEnv *env0, jobject thiz, jboolean biasTee) {
+    MODES_NOTUSED(env0);
+    MODES_NOTUSED(thiz);
+    Modes.bias_tee = biasTee ? 1 : 0;
 }
 
 JNIEXPORT jobject JNICALL Java_adsbrecorder_jni_Dump1090Native_listAllReceivers(JNIEnv* env0, jclass clazz) {
