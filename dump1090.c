@@ -143,6 +143,7 @@ struct {
     int enable_agc;
     rtlsdr_dev_t *dev;
     int freq;
+    int bias_tee;
 
     /* Networking */
     char aneterr[ANET_ERR_LEN];
@@ -261,6 +262,7 @@ void modesInitConfig(void) {
     Modes.dev_index = 0;
     Modes.enable_agc = 0;
     Modes.freq = MODES_DEFAULT_FREQ;
+    Modes.bias_tee = 0;
     Modes.filename = NULL;
     Modes.fix_errors = 1;
     Modes.check_crc = 1;
@@ -381,6 +383,7 @@ void modesInitRTLSDR(void) {
     rtlsdr_reset_buffer(Modes.dev);
     fprintf(stderr, "Gain reported by device: %.2f\n",
         rtlsdr_get_tuner_gain(Modes.dev)/10.0);
+    rtlsdr_set_bias_tee(Modes.dev, Modes.bias_tee);
 }
 
 /* We use a thread reading data in background, while the main thread
@@ -2422,6 +2425,7 @@ void showHelp(void) {
 "--gain <db>              Set gain (default: max gain. Use -100 for auto-gain).\n"
 "--enable-agc             Enable the Automatic Gain Control (default: off).\n"
 "--freq <hz>              Set frequency (default: 1090 Mhz).\n"
+"--enable-bias-tee        Enable Bias Tee on RTLSDR (default: disabled).\n"
 "--ifile <filename>       Read data from file (use '-' for stdin).\n"
 "--interactive            Interactive mode refreshing data on screen.\n"
 "--interactive-rows <num> Max number of rows in interactive mode (default: 15).\n"
@@ -2492,6 +2496,8 @@ int main(int argc, char **argv) {
             Modes.enable_agc++;
         } else if (!strcmp(argv[j],"--freq") && more) {
             Modes.freq = strtoll(argv[++j],NULL,10);
+        } else if (!strcmp(argv[j],"--enable-bias-tee")) {
+            Modes.bias_tee = 1;
         } else if (!strcmp(argv[j],"--ifile") && more) {
             Modes.filename = strdup(argv[++j]);
         } else if (!strcmp(argv[j],"--no-fix")) {
